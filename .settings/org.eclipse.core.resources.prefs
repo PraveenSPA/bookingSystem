@@ -1,0 +1,10 @@
+eclipse.preferences.version=1
+encoding//src/main/webapp/admin/bookings/deleteBooking.jsp=UTF-8
+encoding//src/main/webapp/admin/bookings/viewBookings.jsp=UTF-8
+encoding//src/main/webapp/admin/buses/insertBus.jsp=UTF-8
+encoding//src/main/webapp/admin/buses/updateBus.jsp=UTF-8
+encoding//src/main/webapp/admin/payments/updatePayment.jsp=UTF-8
+encoding//src/main/webapp/admin/schedules/editSchedule.jsp=UTF-8
+encoding//src/main/webapp/admin/schedules/manageSchedules.jsp=UTF-8
+encoding//src/main/webapp/loginModal.jsp=UTF-8
+encoding/<project>=UTF-8
