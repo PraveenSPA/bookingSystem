@@ -6,6 +6,15 @@
 <%
 request.setCharacterEncoding("UTF-8");
 
+// 1️⃣ Get logged-in user ID from session
+Integer userIdObj = (Integer) session.getAttribute("user_id");
+if(userIdObj == null){
+    out.println("<p style='color:red'>Please login to book tickets!</p>");
+    return;
+}
+int userId = userIdObj.intValue();
+
+// 2️⃣ Get schedule and seats
 String scheduleParam = request.getParameter("schedule_id");
 if (scheduleParam == null || scheduleParam.isEmpty()) {
     out.println("<p style='color:red'>Error: Schedule missing!</p>");
@@ -19,33 +28,29 @@ if (seats == null || seats.length == 0) {
     return;
 }
 
-// In real app, user_id from session
-int userId = 1;
-
 Connection conn = null;
 PreparedStatement psFindSS = null;
 PreparedStatement psInsertSS = null;
 PreparedStatement psBooking = null;
 PreparedStatement psPassenger = null;
-
 List<Integer> bookingIds = new ArrayList<>();
 
 try {
     conn = con;
     conn.setAutoCommit(false);
 
-    // prepare insert booking
+    // Prepare booking insert
     psBooking = conn.prepareStatement(
         "INSERT INTO bookings (user_id, schedule_id, schedule_seat_id, status, payment_status) VALUES (?,?,?,?,?)",
         Statement.RETURN_GENERATED_KEYS
     );
 
     for (String seat : seats) {
-        // 1) find schedule_seat_id for this seat
+        // 1) Find schedule_seat_id for this seat
         psFindSS = conn.prepareStatement(
             "SELECT ss.schedule_seat_id " +
             "FROM schedule_seats ss " +
-            "JOIN seats st ON ss.seat_id=st.seat_id " +
+            "JOIN seats st ON ss.seat_id = st.seat_id " +
             "WHERE ss.schedule_id=? AND st.seat_number=?"
         );
         psFindSS.setInt(1, scheduleId);
@@ -57,12 +62,12 @@ try {
         rs.close();
         psFindSS.close();
 
-        // 2) if not present, create schedule seat row
+        // 2) If not present, create schedule seat row
         if (scheduleSeatId == 0) {
             psInsertSS = conn.prepareStatement(
                 "INSERT INTO schedule_seats (schedule_id, seat_id, is_booked, fare) " +
-                "SELECT ?, st.seat_id, 0, COALESCE(s.fare, 0) " +
-                "FROM seats st JOIN schedules s ON s.bus_id=st.bus_id " +
+                "SELECT ?, st.seat_id, 0, COALESCE(s.fare,0) " +
+                "FROM seats st JOIN schedules s ON s.bus_id = st.bus_id " +
                 "WHERE s.schedule_id=? AND st.seat_number=?",
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -76,12 +81,12 @@ try {
             psInsertSS.close();
         }
 
-        // 3) insert booking as Pending (not paid yet)
+        // 3) Insert booking
         psBooking.setInt(1, userId);
         psBooking.setInt(2, scheduleId);
         psBooking.setInt(3, scheduleSeatId);
-        psBooking.setString(4, "Pending");
-        psBooking.setString(5, "Pending");
+        psBooking.setString(4, "Cancelled");  // default status (can change later)
+        psBooking.setString(5, "Pending");    // default payment status
         psBooking.executeUpdate();
 
         ResultSet bkKeys = psBooking.getGeneratedKeys();
@@ -90,7 +95,7 @@ try {
         bkKeys.close();
         bookingIds.add(bookingId);
 
-        // 4) passenger row
+        // 4) Insert passenger info
         psPassenger = conn.prepareStatement(
             "INSERT INTO booking_passengers (booking_id, seat_number, name, gender, age, phone) VALUES (?,?,?,?,?,?)"
         );
@@ -106,7 +111,7 @@ try {
 
     conn.commit();
 
-    // redirect to payment with all booking_ids
+    // Redirect to payment page
     StringBuilder sb = new StringBuilder();
     for (int i=0;i<bookingIds.size();i++) {
         if (i>0) sb.append(",");

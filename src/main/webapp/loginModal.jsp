@@ -4,6 +4,13 @@
     <div class="modal-dialog">
         <div class="modal-content p-4">
             <h4 class="text-center mb-3">Login</h4>
+
+            <% if(request.getAttribute("loginError") != null){ %>
+                <div class="alert alert-danger">
+                    <%= request.getAttribute("loginError") %>
+                </div>
+            <% } %>
+
             <form method="post" action="loginProcess.jsp">
                 <input type="hidden" name="redirect" value="">
                 <div class="mb-3">
@@ -23,8 +30,5 @@
                 </p>
             </form>
         </div>
-    </div>
-</div>
-
     </div>
 </div>

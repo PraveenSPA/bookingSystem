@@ -6,58 +6,56 @@
 <%
 String idsParam = request.getParameter("booking_ids");
 if (idsParam == null || idsParam.trim().isEmpty()) {
-    out.println("<p style='color:red'>Invalid booking!</p>");
+    out.println("<p style='color:red'>No bookings selected!</p>");
     return;
 }
+
 String[] idParts = idsParam.split(",");
 List<Integer> bookingIds = new ArrayList<>();
 for (String p : idParts) {
     try { bookingIds.add(Integer.parseInt(p.trim())); } catch(Exception ex){}
 }
 if (bookingIds.isEmpty()) {
-    out.println("<p style='color:red'>Invalid booking!</p>");
+    out.println("<p style='color:red'>Invalid booking IDs!</p>");
     return;
 }
 
 // Build IN clause
-String inClause = String.join(",", java.util.Collections.nCopies(bookingIds.size(), "?"));
+String inClause = String.join(",", Collections.nCopies(bookingIds.size(), "?"));
 
-// Compute total fare
-double amount = 0.0;
+// Compute total fare from DB
+double totalAmount = 0.0;
 PreparedStatement psSum = con.prepareStatement(
     "SELECT SUM(ss.fare) AS totalFare " +
     "FROM bookings b JOIN schedule_seats ss ON b.schedule_seat_id=ss.schedule_seat_id " +
     "WHERE b.booking_id IN (" + inClause + ")"
 );
-for (int i=0;i<bookingIds.size();i++) psSum.setInt(i+1, bookingIds.get(i));
+for (int i=0; i<bookingIds.size(); i++) psSum.setInt(i+1, bookingIds.get(i));
 ResultSet rsSum = psSum.executeQuery();
-if (rsSum.next()) amount = rsSum.getDouble("totalFare");
+if (rsSum.next()) totalAmount = rsSum.getDouble("totalFare");
 rsSum.close(); psSum.close();
 
-// Journey info (from first booking)
+// Fetch journey info from first booking
 PreparedStatement psInfo = con.prepareStatement(
   "SELECT c1.city_name AS from_city, c2.city_name AS to_city, " +
-  "       s.departure_datetime, s.arrival_datetime, s.schedule_id, b2.bus_id, bu.bus_number, bu.bus_type " +
+  "s.departure_datetime, s.arrival_datetime, bu.bus_number, bu.bus_type " +
   "FROM bookings b " +
   "JOIN schedules s ON b.schedule_id=s.schedule_id " +
   "JOIN routes r ON s.route_id=r.route_id " +
   "JOIN cities c1 ON r.from_city_id=c1.city_id " +
   "JOIN cities c2 ON r.to_city_id=c2.city_id " +
   "JOIN buses bu ON s.bus_id=bu.bus_id " +
-  "JOIN bookings b2 ON b2.booking_id=b.booking_id " +
   "WHERE b.booking_id=? LIMIT 1"
 );
 psInfo.setInt(1, bookingIds.get(0));
 ResultSet rsInfo = psInfo.executeQuery();
 
 String fromCity="", toCity="", dep="", arr="", busNum="", busType="";
-int scheduleId = 0;
-if (rsInfo.next()){
+if (rsInfo.next()) {
     fromCity = rsInfo.getString("from_city");
     toCity   = rsInfo.getString("to_city");
     dep      = rsInfo.getTimestamp("departure_datetime").toString();
     arr      = rsInfo.getTimestamp("arrival_datetime").toString();
-    scheduleId = rsInfo.getInt("schedule_id");
     busNum   = rsInfo.getString("bus_number");
     busType  = rsInfo.getString("bus_type");
 }
@@ -76,17 +74,18 @@ int seatCount = bookingIds.size();
   <h2 class="mb-3">Payment</h2>
 
   <div class="card p-3 mb-3">
-    <h5 class="mb-2">Trip Details</h5>
+    <h5>Trip Details</h5>
     <div><strong>From:</strong> <%= fromCity %> &nbsp; <strong>To:</strong> <%= toCity %></div>
     <div><strong>Departure:</strong> <%= dep %> &nbsp; <strong>Arrival:</strong> <%= arr %></div>
     <div><strong>Bus:</strong> <%= busNum %> (<%= busType %>)</div>
     <div><strong>Seats:</strong> <%= seatCount %></div>
-    <div class="mt-2"><strong>Total Amount:</strong> ₹<%= String.format(java.util.Locale.US, "%.2f", amount) %></div>
+    <div class="mt-2 alert alert-info">
+    <strong>Total Amount Payable:</strong> ₹<%= String.format(java.util.Locale.US, "%.2f", totalAmount) %></div>
   </div>
 
   <form action="processPayment.jsp" method="post">
     <input type="hidden" name="booking_ids" value="<%= idsParam %>">
-    <input type="hidden" name="amount" value="<%= amount %>">
+    <input type="hidden" name="amount" value="<%= totalAmount %>">
 
     <div class="mb-3">
       <label class="form-label">Payment Method</label>

@@ -84,6 +84,7 @@
         <button class="btn btn-sm btn-outline-success" onclick="showRegisterModal()">Sign Up</button>
     <% } else { %>
         <span class="text-username me-2">Welcome, <%= username %></span>
+    <a href="userBookings.jsp" class="btn btn-sm btn-outline-primary">My Bookings</a>
         <a href="logout.jsp" class="btn btn-sm btn-outline-danger">Logout</a>
     <% } %>
 </div>
